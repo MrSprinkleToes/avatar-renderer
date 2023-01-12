@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "webpack",
+    "corsProxy": "node cors-proxy/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -13,12 +14,17 @@
     "@babel/core": "^7.20.12",
     "@babel/preset-env": "^7.20.2",
     "babel-loader": "^9.1.2",
+    "cors-anywhere": "^0.4.4",
     "html-webpack-plugin": "^5.5.0",
     "webpack": "^5.75.0",
     "webpack-cli": "^5.0.1",
     "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
-    "three": "^0.148.0"
+    "buffer": "^6.0.3",
+    "stream-browserify": "^3.0.0",
+    "three": "^0.148.0",
+    "timers-browserify": "^2.0.12",
+    "xml2js": "^0.4.23"
   }
 }

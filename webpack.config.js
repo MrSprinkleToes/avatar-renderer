@@ -20,6 +20,13 @@ module.exports = {
 			},
 		],
 	},
+	resolve: {
+		fallback: {
+			stream: require.resolve("stream-browserify"),
+			buffer: require.resolve("buffer/"),
+			timers: require.resolve("timers-browserify"),
+		},
+	},
 	plugins: [new HtmlWebpackPlugin()],
 	mode: "development",
 };
