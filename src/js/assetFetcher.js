@@ -15,7 +15,7 @@ async function fetchAccessoryAssetIds(id) {
 	).then((response) => response.text());
 
 	var xml = parseString(assetData);
-	if (assetData === undefined) {
+	if (xml === undefined) {
 		// fetching mesh
 
 		var meshIdSplit = assetData.split("MeshId");
@@ -90,10 +90,23 @@ async function fetchMeshData(id) {
 	var meshDataLocation = meshDataSourceInfo.locations[0].location;
 
 	var meshData = await fetch(meshDataLocation).then((response) =>
-		response.text()
+		response.arrayBuffer()
 	);
 
 	return meshData;
 }
 
-export { fetchAccessoryAssetIds, fetchMeshData };
+async function fetchTextureData(id) {
+	var textureDataSourceInfo = await fetch(
+		`http://localhost:8081/https://assetdelivery.roblox.com/v2/asset?id=${id}`
+	).then((response) => response.json());
+	var textureDataLocation = textureDataSourceInfo.locations[0].location;
+
+	var textureData = await fetch(textureDataLocation).then((response) =>
+		response.blob()
+	);
+
+	return textureData;
+}
+
+export { fetchAccessoryAssetIds, fetchMeshData, fetchTextureData };

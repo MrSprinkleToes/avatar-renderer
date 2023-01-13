@@ -1,6 +1,30 @@
-import { parseString } from "xml2js";
-import { fetchAccessoryAssetIds, fetchMeshData } from "./assetFetcher";
+import {
+	fetchAccessoryAssetIds,
+	fetchMeshData,
+	fetchTextureData,
+} from "./assetFetcher";
 import { constructMesh } from "./meshConstructor";
+import { TextureLoader } from "three";
+
+const texLoader = new TextureLoader();
+
+const hats = [
+	48474294, 607700713, 607702162, 4819740796, 48474313, 121390915, 5634362258,
+	9787169126,
+];
+
+async function renderAccessory(id, scene, i) {
+	let { meshId, texId } = await fetchAccessoryAssetIds(id);
+	let meshData = await fetchMeshData(meshId);
+	let texBlob = await fetchTextureData(texId);
+	let tex = texLoader.load(URL.createObjectURL(texBlob));
+	let mesh = await constructMesh(meshData, tex);
+
+	mesh.position.set(i * 4, 0, 0);
+	scene.add(mesh);
+
+	return mesh;
+}
 
 /**
  * Renders the avatar of the given user id.
@@ -10,12 +34,14 @@ async function renderAvatar(userId, scene) {
 	const avatarInfo = await fetch(
 		`http://localhost:8081/https://avatar.roblox.com/v1/users/${userId}/avatar`
 	).then((response) => response.json());
-	const { meshId, texId } = await fetchAccessoryAssetIds(607700713);
 
-	const meshData = await fetchMeshData(meshId);
-	const mesh = await constructMesh(meshData);
+	var accessoryPromises = [];
+	for (let i = 0; i < hats.length; i++) {
+		accessoryPromises.push(renderAccessory(hats[i], scene, i));
+	}
 
-	scene.add(mesh);
+	var meshes = await Promise.all(accessoryPromises);
+	console.log(meshes);
 }
 
 export { renderAvatar };
