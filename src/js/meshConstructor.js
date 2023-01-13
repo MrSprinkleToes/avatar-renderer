@@ -55,6 +55,7 @@ async function constructMesh(meshData, tex) {
 			uv.push(faceUv[0], faceUv[1]);
 		}
 	} else if (
+		// for meshes version 2+
 		version.startsWith("version 2.") ||
 		version.startsWith("version 3.") ||
 		version.startsWith("version 4.")
@@ -62,23 +63,29 @@ async function constructMesh(meshData, tex) {
 		var data = new DataView(meshData);
 		var headerStart = 13;
 		var meshHeaderSize = data.getUint16(headerStart, true);
-		var vertexSize = data.getUint8(headerStart + 2, true);
-		var faceSize = data.getUint8(headerStart + 3, true);
-		var vertCount = data.getUint32(headerStart + 4, true);
-		var faceCount = data.getUint32(headerStart + 8, true);
+		var vertexSize = data.getUint8(headerStart + 2, true); // size of a vertex in bytes
+		var faceSize = data.getUint8(headerStart + 3, true); // size of a face in bytes
+		var vertCount = data.getUint32(headerStart + 4, true); // number of vertices
+		var faceCount = data.getUint32(headerStart + 8, true); // number of faces
+		var lodSize; // size of a lod in bytes
+		var lodCount; // number of lods
 
 		if (version.startsWith("version 4.")) {
 			vertCount = data.getUint32(headerStart + 4, true);
 			faceCount = data.getUint32(headerStart + 8, true);
+			lodCount = data.getUint32(headerStart + 12, true);
 			vertexSize = 40;
 			faceSize = 12;
+			lodSize = 4;
 		} else if (meshHeaderSize > 12) {
 			vertCount = data.getUint32(headerStart + 8, true);
 			faceCount = data.getUint32(headerStart + 12, true);
+			lodSize = data.getUint16(headerStart + 4, true);
+			lodCount = data.getUint16(headerStart + 6, true);
 		}
 
-		var vertexStart = headerStart + meshHeaderSize;
-		var vertexEnd = vertexStart + vertexSize * vertCount;
+		var vertexStart = headerStart + meshHeaderSize; // start position of the vertex data
+		var vertexEnd = vertexStart + vertexSize * vertCount; // end position of the vertex data
 
 		var verticies = [];
 
@@ -94,13 +101,14 @@ async function constructMesh(meshData, tex) {
 				data.getFloat32(i + 24, true), // uv u
 				1 - data.getFloat32(i + 28, true), // uv v
 				data.getFloat32(i + 32, true), // uv w
-				255, // vertex color r
+				255, // vertex color r (default to white as some meshes don't have vertex colors)
 				255, // vertex color g
 				255, // vertex color b
 				255, // vertex color a
 			];
 
 			if (vertexSize >= 40) {
+				// if the vertex size is greater than 40 bytes, it has vertex colors
 				vertex[9] = data.getUint8(i + 36, true); // vertex color r
 				vertex[10] = data.getUint8(i + 37, true); // vertex color g
 				vertex[11] = data.getUint8(i + 38, true); // vertex color b
@@ -126,7 +134,18 @@ async function constructMesh(meshData, tex) {
 			i += faceSize;
 		}
 
+		var lods = []; // if we don't support lods and instead render all triangles, the mesh will look wrong
+		var lodStart = faceEnd;
+		var lodEnd = lodStart + lodSize * lodCount;
+
+		i = lodStart;
+		while (i < lodEnd) {
+			lods.push(data.getUint32(i, true));
+			i += lodSize;
+		}
+
 		for (let i = 0; i < faces.length; i++) {
+			if (lods.length > 1 && i > lods[1]) break; // only use the first LOD
 			var face = faces[i];
 			var v1 = verticies[face[0]];
 			var v2 = verticies[face[1]];
@@ -136,6 +155,7 @@ async function constructMesh(meshData, tex) {
 			norm.push(v1[3], v1[4], v1[5], v2[3], v2[4], v2[5], v3[3], v3[4], v3[5]);
 			uv.push(v1[6], v1[7], v2[6], v2[7], v3[6], v3[7]);
 			colors.push(
+				// threejs appears to use vertex colors between 0 and 1 so convert from 0 to 255 to 0 to 1
 				v1[9] / 255,
 				v1[10] / 255,
 				v1[11] / 255,
@@ -155,9 +175,7 @@ async function constructMesh(meshData, tex) {
 	geometry.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
 	geometry.setAttribute("normal", new THREE.Float32BufferAttribute(norm, 3));
 	geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-	if (!version.startsWith("version 1.")) {
-		geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
-	}
+	geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4)); // will be empty for version 1 meshes
 
 	return new THREE.Mesh(geometry, material);
 }
